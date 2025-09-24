@@ -144,7 +144,7 @@ const AdminLogin = () => {
 
           <div className="mt-4 text-center">
             <p className="text-xs text-gray-500">
-              Demo credentials: demo@legalestate.tech / demo123
+              Demo credentials: admin@legalestate.tech / AdminLegalTech2024
             </p>
           </div>
         </form>

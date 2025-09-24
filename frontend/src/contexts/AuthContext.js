@@ -50,9 +50,9 @@ export const AuthProvider = ({ children }) => {
       console.log('📤 Request data:', { email, password: '***' });
       
       const response = await endpoints.auth.login({ email, password });
-
-      console.log('✅ Login response:', response);
-      console.log('✅ Login response type:', typeof response);
+      
+      console.log('✅ Login response status:', response.status);
+      console.log('✅ Login response data:', response.data);
 
       const { token: authToken, user: userData, client: clientData, loginType: userType } = response;
       const userInfo = userData || clientData;
@@ -69,14 +69,13 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: userInfo, loginType: userType || loginType };
     } catch (error) {
       console.error('❌ Login error (full):', error);
-      console.error('❌ Error type:', error.type);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Original error:', error.originalError);
-
-      // The error is already parsed by the API interceptor
-      const errorMessage = error.message || 'Login failed';
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error headers:', error.response?.headers);
+      
+      const errorMessage = error.error?.message || error.message || 'Login failed';
       console.error('❌ Final error message:', errorMessage);
-
+      
       return {
         success: false,
         error: errorMessage

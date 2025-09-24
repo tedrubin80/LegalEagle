@@ -1,49 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
-
-// SVG Icon Components
-const PlusIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-  </svg>
-);
-
-const MagnifyingGlassIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-
-const CalendarIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-  </svg>
-);
-
-const UserIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-  </svg>
-);
-
-const ExclamationTriangleIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-  </svg>
-);
-
-const CheckCircleIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const ClockIcon = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
+import DemoTaskService from '../Demo/DemoTaskService';
+import { isDemoMode } from '../Demo/DemoConfig';
+import {
+  PlusIcon,
+  MagnifyingGlassIcon,
+  CalendarIcon,
+  UserIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  FunnelIcon
+} from '../Icons';
 
 const TaskBoard = () => {
   const [tasks, setTasks] = useState([]);
@@ -57,7 +26,6 @@ const TaskBoard = () => {
   });
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const { user } = useAuth();
-  const isDemoMode = localStorage.getItem('demoMode') === 'true';
 
   useEffect(() => {
     fetchTasks();
@@ -67,131 +35,38 @@ const TaskBoard = () => {
     try {
       setLoading(true);
 
-      // Use mock data in demo mode
-      if (isDemoMode) {
-        const mockTasks = [
-          {
-            id: '1',
-            title: 'Review Settlement Agreement',
-            description: 'Review and finalize settlement agreement for Johnson case',
-            status: 'IN_PROGRESS',
-            priority: 'HIGH',
-            dueDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-            case: { id: '1', title: 'Johnson v. ABC Corp' },
-            assignedTo: { firstName: 'Demo', lastName: 'Attorney' }
-          },
-          {
-            id: '2',
-            title: 'Client Document Collection',
-            description: 'Collect medical records and police reports from client',
-            status: 'PENDING',
-            priority: 'MEDIUM',
-            dueDate: new Date(Date.now() + 172800000).toISOString(), // 2 days from now
-            case: { id: '2', title: 'Smith Personal Injury Case' },
-            assignedTo: { firstName: 'Demo', lastName: 'Paralegal' }
-          },
-          {
-            id: '3',
-            title: 'Court Filing Deadline',
-            description: 'File motion for summary judgment',
-            status: 'PENDING',
-            priority: 'HIGH',
-            dueDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday (overdue)
-            case: { id: '3', title: 'Estate of Williams' },
-            assignedTo: { firstName: 'Demo', lastName: 'Attorney' }
-          },
-          {
-            id: '4',
-            title: 'Deposition Preparation',
-            description: 'Prepare witness for upcoming deposition',
-            status: 'IN_PROGRESS',
-            priority: 'HIGH',
-            dueDate: new Date(Date.now() + 259200000).toISOString(), // 3 days from now
-            case: { id: '4', title: 'Thompson v. XYZ Insurance' },
-            assignedTo: { firstName: 'Demo', lastName: 'Attorney' }
-          },
-          {
-            id: '5',
-            title: 'Research Case Precedents',
-            description: 'Research similar cases for legal precedents',
-            status: 'COMPLETED',
-            priority: 'LOW',
-            dueDate: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-            case: { id: '5', title: 'Brown Contract Dispute' },
-            assignedTo: { firstName: 'Demo', lastName: 'Clerk' }
-          },
-          {
-            id: '6',
-            title: 'Schedule Expert Witness',
-            description: 'Coordinate with medical expert for testimony',
-            status: 'PENDING',
-            priority: 'MEDIUM',
-            dueDate: new Date(Date.now() + 604800000).toISOString(), // 1 week from now
-            case: { id: '6', title: 'Davis Medical Malpractice' },
-            assignedTo: { firstName: 'Demo', lastName: 'Paralegal' }
-          },
-          {
-            id: '7',
-            title: 'Client Meeting Follow-up',
-            description: 'Send follow-up email with case update to client',
-            status: 'COMPLETED',
-            priority: 'LOW',
-            dueDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-            case: { id: '7', title: 'Wilson Employment Case' },
-            assignedTo: { firstName: 'Demo', lastName: 'Attorney' }
-          },
-          {
-            id: '8',
-            title: 'AI Document Review',
-            description: 'Use AI to review and summarize discovery documents',
-            status: 'IN_PROGRESS',
-            priority: 'MEDIUM',
-            dueDate: new Date(Date.now() + 345600000).toISOString(), // 4 days from now
-            case: { id: '8', title: 'Anderson Complex Litigation' },
-            assignedTo: { firstName: 'Demo', lastName: 'Attorney' }
-          }
-        ];
-
-        // Apply filters to mock data
-        let filteredTasks = [...mockTasks];
-
-        if (searchTerm) {
-          filteredTasks = filteredTasks.filter(task =>
-            task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            task.description.toLowerCase().includes(searchTerm.toLowerCase())
-          );
-        }
-
-        if (filters.status) {
-          filteredTasks = filteredTasks.filter(task => task.status === filters.status);
-        }
-
-        if (filters.priority) {
-          filteredTasks = filteredTasks.filter(task => task.priority === filters.priority);
-        }
-
-        if (filters.overdue === 'true') {
-          filteredTasks = filteredTasks.filter(task =>
-            new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED'
-          );
-        }
-
-        setTasks(filteredTasks);
-      } else {
-        const params = new URLSearchParams({
+      // Use demo service in demo mode
+      if (isDemoMode()) {
+        const params = {
           ...(searchTerm && { search: searchTerm }),
           ...(filters.status && { status: filters.status }),
           ...(filters.priority && { priority: filters.priority }),
           ...(filters.assignedToId && { assignedToId: filters.assignedToId }),
           ...(filters.overdue && { overdue: filters.overdue })
-        });
+        };
 
-        const response = await axios.get(`/tasks?${params}`);
+        const response = await DemoTaskService.getTasks(params);
         setTasks(response.data.tasks || []);
+        return;
       }
+
+      // Regular API call for non-demo mode
+      const params = new URLSearchParams({
+        ...(searchTerm && { search: searchTerm }),
+        ...(filters.status && { status: filters.status }),
+        ...(filters.priority && { priority: filters.priority }),
+        ...(filters.assignedToId && { assignedToId: filters.assignedToId }),
+        ...(filters.overdue && { overdue: filters.overdue })
+      });
+
+      const response = await axios.get(`/api/tasks?${params}`);
+      // Ensure we always have an array
+      const tasksData = response.data?.tasks || response.data?.data || response.data || [];
+      setTasks(Array.isArray(tasksData) ? tasksData : []);
     } catch (error) {
       console.error('Error fetching tasks:', error);
-      setTasks([]); // Set empty array on error
+      // Set empty array on error to prevent filter errors
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -199,34 +74,58 @@ const TaskBoard = () => {
 
   const updateTaskStatus = async (taskId, newStatus) => {
     try {
-      if (isDemoMode) {
-        // In demo mode, just update the task locally
-        setTasks(prevTasks =>
-          prevTasks.map(task =>
-            task.id === taskId ? { ...task, status: newStatus } : task
-          )
-        );
-      } else {
-        const response = await axios.put(`/tasks/${taskId}`, { status: newStatus });
+      // Use demo service in demo mode
+      if (isDemoMode()) {
+        const response = await DemoTaskService.updateTask(taskId, { status: newStatus });
         setTasks(prevTasks =>
           prevTasks.map(task =>
             task.id === taskId ? { ...task, ...response.data } : task
           )
         );
+        return;
       }
+
+      // Regular API call for non-demo mode
+      const response = await axios.put(`/api/tasks/${taskId}`, { status: newStatus });
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId ? { ...task, ...response.data } : task
+        )
+      );
     } catch (error) {
       console.error('Error updating task status:', error);
     }
   };
 
-  const isOverdue = (dueDate) => {
-    return dueDate && new Date(dueDate) < new Date();
+  const getPriorityColor = (priority) => {
+    const colors = {
+      HIGH: 'bg-red-100 text-red-800 border-red-200',
+      MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      LOW: 'bg-green-100 text-green-800 border-green-200'
+    };
+    return colors[priority] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
+  const getStatusIcon = (status) => {
+    const icons = {
+      PENDING: <ClockIcon className="h-5 w-5 text-gray-400" />,
+      IN_PROGRESS: <ClockIcon className="h-5 w-5 text-blue-500" />,
+      COMPLETED: <CheckCircleIcon className="h-5 w-5 text-green-500" />
+    };
+    return icons[status] || icons.PENDING;
+  };
+
+  const isOverdue = (dueDate, taskId, status) => {
+    return dueDate && new Date(dueDate) < new Date() && status !== 'COMPLETED';
+  };
+
+  // Ensure tasks is always an array before filtering
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+
   const tasksByStatus = {
-    PENDING: tasks.filter(task => task.status === 'PENDING'),
-    IN_PROGRESS: tasks.filter(task => task.status === 'IN_PROGRESS'),
-    COMPLETED: tasks.filter(task => task.status === 'COMPLETED')
+    PENDING: safeTasks.filter(task => task.status === 'PENDING'),
+    IN_PROGRESS: safeTasks.filter(task => task.status === 'IN_PROGRESS'),
+    COMPLETED: safeTasks.filter(task => task.status === 'COMPLETED')
   };
 
   if (loading) {
@@ -544,7 +443,7 @@ const TaskCard = ({ task, onStatusChange, isOverdue }) => {
   );
 };
 
-// Helper functions moved outside component to avoid re-creation
+// Helper function moved outside component to avoid re-creation
 const getPriorityColor = (priority) => {
   const colors = {
     HIGH: 'bg-red-100 text-red-800 border-red-200',
@@ -552,15 +451,6 @@ const getPriorityColor = (priority) => {
     LOW: 'bg-green-100 text-green-800 border-green-200'
   };
   return colors[priority] || 'bg-gray-100 text-gray-800 border-gray-200';
-};
-
-const getStatusIcon = (status) => {
-  const icons = {
-    PENDING: <ClockIcon className="h-5 w-5 text-gray-400" />,
-    IN_PROGRESS: <ClockIcon className="h-5 w-5 text-blue-500" />,
-    COMPLETED: <CheckCircleIcon className="h-5 w-5 text-green-500" />
-  };
-  return icons[status] || icons.PENDING;
 };
 
 export default TaskBoard;

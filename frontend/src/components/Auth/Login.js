@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { EyeIcon, EyeSlashIcon } from '../Icons';
-import VirtualTour from '../Demo/VirtualTour';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -12,7 +11,6 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showDemoCredentials, setShowDemoCredentials] = useState(false);
-  const [showVirtualTour, setShowVirtualTour] = useState(false);
 
   // Check if we're in demo mode
   const isDemoMode = process.env.REACT_APP_DEMO_MODE === 'true' ||
@@ -219,30 +217,17 @@ const Login = () => {
                 </button>
 
                 {showDemoCredentials && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => fillDemoCredentials('client@demo.tech', 'client123')}
-                      className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="text-left">
-                        <div className="text-sm font-medium text-gray-900">👤 Client</div>
-                        <div className="text-xs text-gray-500">Client portal access</div>
-                      </div>
-                      <div className="text-xs text-blue-600 font-medium">Click to Login</div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowVirtualTour(true)}
-                      className="flex items-center justify-center p-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-md hover:from-blue-600 hover:to-purple-700 transition-colors"
-                    >
-                      <div className="text-center">
-                        <div className="text-sm font-medium">🎭 Take Virtual Tour</div>
-                        <div className="text-xs opacity-90">Explore AI-powered features</div>
-                      </div>
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={() => fillDemoCredentials('paralegal@legalestate.tech', 'paralegal123')}
+                    className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="text-left">
+                      <div className="text-sm font-medium text-gray-900">📋 Paralegal</div>
+                      <div className="text-xs text-gray-500">Document and task management</div>
+                    </div>
+                    <div className="text-xs text-blue-600 font-medium">Click to Login</div>
+                  </button>
                 )}
               </div>
 
@@ -253,7 +238,7 @@ const Login = () => {
                   <div className="text-xs text-gray-600 space-y-1 font-mono bg-gray-50 p-2 rounded">
                     <div>👑 <span className="font-semibold">Admin:</span> demo@legalestate.tech / demo123</div>
                     <div>⚖️ <span className="font-semibold">Attorney:</span> user@legalestate.tech / user123</div>
-                    <div>👤 <span className="font-semibold">Client:</span> client@demo.tech / client123</div>
+                    <div>📋 <span className="font-semibold">Paralegal:</span> paralegal@legalestate.tech / paralegal123</div>
                   </div>
                 </div>
               )}
@@ -281,13 +266,6 @@ const Login = () => {
             </div>
           </div>
         )}
-
-        {/* Virtual Tour */}
-        <VirtualTour
-          isActive={showVirtualTour}
-          onClose={() => setShowVirtualTour(false)}
-          onComplete={() => setShowVirtualTour(false)}
-        />
       </div>
     </div>
   );

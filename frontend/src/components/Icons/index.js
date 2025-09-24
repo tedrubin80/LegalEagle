@@ -429,30 +429,6 @@ export const RecordIcon = ({ className = "h-5 w-5", ...props }) => (
   </svg>
 );
 
-export const ChevronLeftIcon = ({ className = "h-5 w-5", ...props }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-  </svg>
-);
-
-export const ChevronRightIcon = ({ className = "h-5 w-5", ...props }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-  </svg>
-);
-
-export const SparklesIcon = ({ className = "h-5 w-5", ...props }) => (
-  <svg className={className} fill="currentColor" viewBox="0 0 24 24" {...props}>
-    <path fillRule="evenodd" d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813A3.75 3.75 0 007.466 7.89l.813-2.846A.75.75 0 019 4.5zM18 1.5a.75.75 0 01.728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 010 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 01-1.456 0l-.258-1.036a2.625 2.625 0 00-1.91-1.91l-1.036-.258a.75.75 0 010-1.456l1.036-.258a2.625 2.625 0 001.91-1.91l.258-1.036A.75.75 0 0118 1.5zM16.5 15a.75.75 0 01.712.513l.394 1.183c.15.447.5.799.948.948l1.183.395a.75.75 0 010 1.422l-1.183.395c-.447.15-.799.5-.948.948l-.395 1.183a.75.75 0 01-1.422 0l-.395-1.183a1.5 1.5 0 00-.948-.948l-1.183-.395a.75.75 0 010-1.422l1.183-.395c.447-.15.799-.5.948-.948l.395-1.183A.75.75 0 0116.5 15z" clipRule="evenodd" />
-  </svg>
-);
-
-export const CpuChipIcon = ({ className = "h-5 w-5", ...props }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-1.5 8.25V21m0-18v1.5m-6 15.75V21m0-18v1.5m3.75 16.5h1.5a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0018.75 4.5h-1.5m-10.5 0h-1.5A2.25 2.25 0 003 6.75v10.5A2.25 2.25 0 005.25 19.5h1.5m0 0v1.5m0-1.5h9m-9 0h9" />
-  </svg>
-);
-
 // Icon registry for dynamic lookup
 const icons = {
   home: HomeIcon,
@@ -514,11 +490,7 @@ const icons = {
   phoneXMark: PhoneXMarkIcon,
   computerDesktop: ComputerDesktopIcon,
   chatBubbleLeft: ChatBubbleLeftIcon,
-  record: RecordIcon,
-  chevronLeft: ChevronLeftIcon,
-  chevronRight: ChevronRightIcon,
-  sparkles: SparklesIcon,
-  cpuChip: CpuChipIcon
+  record: RecordIcon
 };
 
 export default icons;

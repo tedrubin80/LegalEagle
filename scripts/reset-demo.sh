@@ -200,13 +200,6 @@ rebuild_frontend() {
         npm run build > /dev/null 2>&1
         if [ $? -eq 0 ]; then
             print_success "Frontend rebuilt with demo settings"
-
-            # Restore custom demo files after build
-            if [ -f "/var/www/html/scripts/restore-demo-files.sh" ]; then
-                print_step "Restoring custom demo files..."
-                /var/www/html/scripts/restore-demo-files.sh
-                print_success "Demo files restored"
-            fi
         else
             print_warning "Frontend rebuild failed, using existing build"
         fi

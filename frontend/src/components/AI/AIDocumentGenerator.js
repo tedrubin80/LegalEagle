@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import DemoAIService from '../Demo/DemoAIService';
 
 const AIDocumentGenerator = ({ settlements, cases }) => {
   const [documentTypes, setDocumentTypes] = useState([]);
@@ -110,6 +111,31 @@ const AIDocumentGenerator = ({ settlements, cases }) => {
     setGeneratedDocument(null);
 
     try {
+      // Check if we're in demo mode
+      if (DemoAIService.isDemoMode()) {
+        // Use demo AI service
+        const context = {
+          ...customData,
+          settlementId: selectedSettlement,
+          caseId: selectedCase
+        };
+
+        const result = await DemoAIService.generateDocument(selectedType.replace('_', '-'), context);
+
+        if (result.success) {
+          setGeneratedDocument({
+            content: result.document,
+            metadata: result.metadata,
+            type: selectedType,
+            isDemo: true
+          });
+          setShowPreview(true);
+        } else {
+          throw new Error('Demo document generation failed');
+        }
+        return;
+      }
+
       const token = localStorage.getItem('authToken');
       
       // Prepare the request based on document type

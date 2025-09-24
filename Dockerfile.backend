@@ -1,0 +1,33 @@
+# Backend Dockerfile
+FROM node:18
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY backend/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy backend source code
+COPY backend/ ./
+
+# Copy prisma schema if it exists
+# Note: Conditional copy handled by .dockerignore
+
+# Generate Prisma client if schema exists
+RUN if [ -f "prisma/schema.prisma" ]; then npx prisma generate; fi
+
+# Create uploads directory
+RUN mkdir -p uploads
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {r.statusCode===200?process.exit(0):process.exit(1)})" || exit 1
+
+# Start the server
+CMD ["node", "server.js"]

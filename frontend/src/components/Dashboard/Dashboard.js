@@ -20,24 +20,14 @@ import InteractiveChart from '../Charts/InteractiveChart';
 import { useRealTimeData } from '../../services/realtimeService';
 import { useToast } from '../Common/Toast';
 import { endpoints } from '../../utils/api';
-import VirtualTour from '../Demo/VirtualTour';
 // import ActivityDashboard from '../Activity/ActivityDashboard';
 // import ActivityTracker from '../Activity/ActivityTracker';
 // import ActivityAnalytics from '../Activity/ActivityAnalytics';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const isDemoMode = localStorage.getItem('demoMode') === 'true';
-
-  // Create demo user if in demo mode
-  const effectiveUser = user || (isDemoMode ? {
-    firstName: 'Demo',
-    name: 'Demo User',
-    role: 'DEMO_ADMIN'
-  } : null);
   const [selectedView, setSelectedView] = useState('overview');
   const [quickActions, setQuickActions] = useState([]);
-  const [showVirtualTour, setShowVirtualTour] = useState(false);
   const toast = useToast();
 
   const [state, setState] = useState({
@@ -76,79 +66,22 @@ const Dashboard = () => {
   // Fetch dashboard data
   useEffect(() => {
     const fetchDashboardData = async () => {
-      // In demo mode, use mock data instead of API calls
-      if (isDemoMode) {
-        console.log('🎭 Demo mode: Using mock dashboard data');
-
-        const mockData = {
-          cases: [
-            {
-              id: '1',
-              title: 'Personal Injury Case - Auto Accident',
-              status: 'ACTIVE',
-              type: 'Personal Injury',
-              value: 150000,
-              updatedAt: new Date().toISOString()
-            },
-            {
-              id: '2',
-              title: 'Contract Dispute - Real Estate',
-              status: 'DISCOVERY',
-              type: 'Contract Law',
-              value: 85000,
-              updatedAt: new Date(Date.now() - 86400000).toISOString()
-            }
-          ],
-          activities: [
-            {
-              id: '1',
-              action: 'Document uploaded',
-              description: 'Medical records uploaded for Case #1001',
-              createdAt: new Date().toISOString(),
-              user: { firstName: 'Demo', lastName: 'User' }
-            }
-          ],
-          stats: {
-            totalCases: 25,
-            activeCases: 18,
-            settledCases: 7,
-            totalRevenue: 847000,
-          }
-        };
-
-        setState({
-          data: mockData,
-          loading: false,
-          error: null
-        });
-
-        // Auto-start virtual tour for first-time demo users
-        const hasSeenTour = localStorage.getItem('demoTourCompleted');
-        if (!hasSeenTour) {
-          setTimeout(() => {
-            setShowVirtualTour(true);
-          }, 2000); // Start tour after 2 seconds
-        }
-
-        return;
-      }
-
       try {
         setState(prev => ({ ...prev, loading: true, error: null }));
-
+        
         const response = await fetch('/api/dashboard/stats', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
           }
         });
-
+        
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-
+        
         const result = await response.json();
-
+        
         // Validate and sanitize response structure
         const validatedData = {
           cases: Array.isArray(result.recentCases) ? result.recentCases : [],
@@ -160,7 +93,7 @@ const Dashboard = () => {
             totalRevenue: Number(result.settlementStats?.totalFees) || 0,
           }
         };
-
+        
         setState({
           data: validatedData,
           loading: false,
@@ -169,7 +102,7 @@ const Dashboard = () => {
       } catch (err) {
         console.error('Dashboard fetch error:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard';
-
+        
         // Set safe fallback data even on error
         setState({
           data: {
@@ -189,17 +122,10 @@ const Dashboard = () => {
     };
 
     fetchDashboardData();
-
-    // Only set up interval for non-demo mode
-    let interval;
-    if (!isDemoMode) {
-      interval = setInterval(fetchDashboardData, 30000); // Refresh every 30 seconds
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isDemoMode]);
+    const interval = setInterval(fetchDashboardData, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const refreshData = () => {
     setState(prev => ({ ...prev, loading: true }));
@@ -402,13 +328,13 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour="dashboard">
       {/* Welcome Header */}
       <div className="bg-white shadow rounded-lg p-6">
         <div className="sm:flex sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Welcome back, {effectiveUser?.firstName || 'User'}!
+              Welcome back, {user?.firstName || 'User'}!
             </h1>
             <p className="mt-2 text-sm text-gray-700">
               Here's what's happening with your legal practice today.
@@ -423,15 +349,7 @@ const Dashboard = () => {
               </div>
             )}
           </div>
-          <div className="mt-4 sm:mt-0 flex gap-3">
-            {isDemoMode && (
-              <button
-                onClick={() => setShowVirtualTour(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-              >
-                🎭 Start Virtual Tour
-              </button>
-            )}
+          <div className="mt-4 sm:mt-0">
             <select
               value={selectedView}
               onChange={(e) => setSelectedView(e.target.value)}
@@ -678,14 +596,6 @@ const Dashboard = () => {
             </div>
           </div>
         </>
-      )}
-
-      {/* Virtual Tour for Demo Mode */}
-      {isDemoMode && (
-        <VirtualTour
-          isActive={showVirtualTour}
-          onClose={() => setShowVirtualTour(false)}
-        />
       )}
     </div>
   );

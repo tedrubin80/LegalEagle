@@ -171,42 +171,4 @@ router.get('/verify', async (req, res) => {
   }
 });
 
-// Get current user (me) endpoint - alias for verify
-router.get('/me', async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided'
-      });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId }
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
-
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({
-      success: true,
-      user: userWithoutPassword
-    });
-
-  } catch (error) {
-    res.status(401).json({
-      success: false,
-      message: 'Invalid token'
-    });
-  }
-});
-
 module.exports = router;

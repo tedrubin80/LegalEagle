@@ -6,9 +6,9 @@ const { ErrorHandler } = require('../middleware/errorHandler');
 const SecurityMiddleware = require('../middleware/security');
 
 // Import controllers
-const ClientController = require('../controllers/ClientController');
+const ClientController = require('../controllers/clientController');
 const CommunicationController = require('../controllers/CommunicationController');
-const CaseController = require('../controllers/CaseController');
+const CaseController = require('../controllers/caseController');
 const CaseTemplateController = require('../controllers/CaseTemplateController');
 
 const router = express.Router();

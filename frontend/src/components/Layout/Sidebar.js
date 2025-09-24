@@ -23,16 +23,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
 
   const navigation = [
-    { name: 'Dashboard', href: '/app/dashboard', icon: HomeIcon },
-    { name: 'Cases', href: '/app/cases', icon: DocumentIcon },
-    { name: 'Clients', href: '/app/clients', icon: UserGroupIcon },
+    { name: 'Dashboard', href: '/app/dashboard', icon: HomeIcon, tour: 'dashboard' },
+    { name: 'Cases', href: '/app/cases', icon: DocumentIcon, tour: 'cases' },
+    { name: 'Clients', href: '/app/clients', icon: UserGroupIcon, tour: 'clients' },
     { name: 'Tasks', href: '/app/tasks', icon: ClipboardDocumentListIcon },
     { name: 'Documents', href: '/app/documents', icon: FolderIcon },
-    { name: 'Legal Research', href: '/app/research', icon: MagnifyingGlassIcon },
+    { name: 'Legal Research', href: '/app/research', icon: MagnifyingGlassIcon, tour: 'ai-features' },
     { name: 'Video Meetings', href: '/app/meetings', icon: VideoCameraIcon },
     { name: 'Time Tracking', href: '/app/time', icon: ClockIcon },
     { name: 'Medical Records', href: '/app/medical', icon: HeartIcon },
-    { name: 'Reports', href: '/app/reports', icon: ChartBarIcon },
+    { name: 'Reports', href: '/app/reports', icon: ChartBarIcon, tour: 'reports' },
   ];
 
   const adminNavigation = [
@@ -70,6 +70,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
               <Link
                 key={item.name}
                 to={item.href}
+                data-tour={item.tour || undefined}
                 className={`${
                   current
                     ? 'bg-blue-50 border-blue-500 text-blue-700'

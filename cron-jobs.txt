@@ -1,0 +1,22 @@
+# Legal Estate Demo System Cron Jobs
+# These cron jobs should be installed for the demo system to function properly
+
+# Demo system daily reset at 3:00 AM UTC
+0 3 * * * /var/www/html/scripts/reset-demo.sh >> /var/www/html/logs/demo-reset.log 2>&1
+
+# System backups every 2 weeks on Sunday at 2:00 AM
+0 2 */14 * 0 /var/www/html/scripts/backup-cron.sh >/dev/null 2>&1
+
+# AI System Monitoring - twice daily (8 AM and 8 PM)
+0 8,20 * * * /var/www/html/scripts/ai-system-monitor.sh >/dev/null 2>&1
+
+# Installation Instructions:
+# 1. Install cron jobs: crontab -e
+# 2. Add the above lines to your crontab
+# 3. Save and exit
+# 4. Verify with: crontab -l
+
+# Logs locations:
+# - Demo reset logs: /var/www/html/logs/demo-reset.log
+# - Backup logs: /var/www/html/logs/backup.log
+# - AI monitoring logs: /var/www/html/logs/ai-monitor.log

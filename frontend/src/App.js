@@ -1,10 +1,13 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import ErrorMonitor from './components/Common/ErrorMonitor';
 import ToastProvider from './components/Common/Toast';
 import { RealTimeProvider } from './services/realtimeService';
+import VirtualWrapper from './components/Demo/VirtualWrapper';
+import DemoHomepage from './components/Demo/DemoHomepage';
+import { isDemoMode } from './components/Demo/DemoConfig';
 import Layout from './components/Layout/Layout';
 import Homepage from './components/Homepage/Homepage';
 import Login from './components/Auth/Login';
@@ -32,19 +35,18 @@ import LexMachinaResearch from './components/LexMachina/LexMachinaResearch';
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  const isDemoMode = localStorage.getItem('demoMode') === 'true';
 
-  if (loading && !isDemoMode) {
+  // In demo mode, bypass authentication
+  if (isDemoMode()) {
+    return children;
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     );
-  }
-
-  // Allow access in demo mode without authentication
-  if (isDemoMode) {
-    return children;
   }
 
   if (!user) {
@@ -77,13 +79,14 @@ function App() {
   return (
     <ErrorMonitor autoReload={false}>
       <ErrorBoundary showDetails={true}>
-        <RealTimeProvider>
-          <ToastProvider position="top-right" maxToasts={5}>
-            <AuthProvider>
-            <Router>
+        <VirtualWrapper>
+          <RealTimeProvider>
+            <ToastProvider position="top-right" maxToasts={5}>
+              <AuthProvider>
+              <Router>
             <Routes>
               {/* Public Routes */}
-              <Route path="/" element={<Homepage />} />
+              <Route path="/" element={<DemoHomepage />} />
               <Route path="/login" element={
                 <PublicRoute>
                   <Login />
@@ -160,6 +163,7 @@ function App() {
             </AuthProvider>
           </ToastProvider>
         </RealTimeProvider>
+        </VirtualWrapper>
       </ErrorBoundary>
     </ErrorMonitor>
   );

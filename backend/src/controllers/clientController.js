@@ -1,348 +1,603 @@
-const { PrismaClient } = require('@prisma/client');
+const BaseController = require('./BaseController');
+const prisma = require('../lib/prisma');
+const APIResponse = require('../lib/apiResponse');
+const { ErrorHandler, APIError } = require('../middleware/errorHandler');
+const AuthUtils = require('../lib/authUtils');
 
-const prisma = new PrismaClient();
+class ClientController extends BaseController {
+  constructor() {
+    super(prisma.client, {
+      modelName: 'Client',
+      allowedFilters: [
+        'firstName', 'lastName', 'email', 'phone', 'mobile', 'city', 'state', 
+        'zipCode', 'maritalStatus', 'preferredContact', 'isActive', 'createdAt', 'updatedAt'
+      ],
+      allowedSortFields: [
+        'firstName', 'lastName', 'email', 'phone', 'clientNumber', 'city', 
+        'state', 'createdAt', 'updatedAt'
+      ],
+      defaultSort: { lastName: 'asc' },
+      include: {
+        emergencyContacts: {
+          orderBy: [
+            { isPrimary: 'desc' },
+            { firstName: 'asc' }
+          ]
+        }
+      },
+      searchFields: ['firstName', 'lastName', 'email', 'phone', 'mobile', 'clientNumber'],
+      requiredCreateFields: ['firstName', 'lastName'],
+      allowedCreateFields: [
+        'firstName', 'lastName', 'email', 'phone', 'mobile', 'address', 'city', 
+        'state', 'zipCode', 'dateOfBirth', 'ssn', 'employer', 'occupation', 
+        'maritalStatus', 'spouseName', 'referredBy', 'preferredContact', 'notes'
+      ],
+      allowedUpdateFields: [
+        'firstName', 'lastName', 'email', 'phone', 'mobile', 'address', 'city', 
+        'state', 'zipCode', 'dateOfBirth', 'ssn', 'employer', 'occupation', 
+        'maritalStatus', 'spouseName', 'referredBy', 'preferredContact', 'isActive', 'notes'
+      ]
+    });
+  }
 
-// Get all clients
-exports.getClients = async (req, res) => {
-  try {
-    const { search, page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
+  // Override beforeCreate to generate client number and set createdById
+  async beforeCreate(data, req) {
+    // Generate unique client number
+    data.clientNumber = await this.generateClientNumber();
+    
+    // Set the createdById from the authenticated user
+    data.createdById = req.user.userId;
+    
+    // Remove userId as Client model doesn't have this field directly
+    delete data.userId;
+    
+    return data;
+  }
 
-    let where = {};
-    if (search) {
-      where = {
-        OR: [
-          { firstName: { contains: search, mode: 'insensitive' } },
-          { lastName: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-          { phone: { contains: search } }
-        ]
+  // Override afterCreate for activity logging
+  async afterCreate(resource, req) {
+    try {
+      await prisma.activity.create({
+        data: {
+          id: AuthUtils.generateToken(16),
+          action: 'CLIENT_CREATED',
+          description: `New client created: ${resource.firstName} ${resource.lastName}`,
+          entityType: 'CLIENT',
+          entityId: resource.id,
+          userId: req.user?.userId,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log client creation:', error);
+    }
+  }
+
+  // Override afterUpdate for activity logging
+  async afterUpdate(resource, existingResource, req) {
+    try {
+      await prisma.activity.create({
+        data: {
+          id: AuthUtils.generateToken(16),
+          action: 'CLIENT_UPDATED',
+          description: `Client updated: ${resource.firstName} ${resource.lastName}`,
+          entityType: 'CLIENT',
+          entityId: resource.id,
+          userId: req.user?.userId,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log client update:', error);
+    }
+  }
+
+  // Override user filtering for clients (clients don't have direct user ownership)
+  addUserFilter(where, user) {
+    if (user.role === 'ADMIN') {
+      return where;
+    }
+    
+    if (user.role === 'ATTORNEY') {
+      // Attorneys can see all clients
+      return where;
+    }
+    
+    if (user.role === 'PARALEGAL') {
+      // Paralegals can see clients with cases they're assigned to
+      return {
+        ...where,
+        cases: {
+          some: {
+            userId: user.userId
+          }
+        }
       };
     }
+    
+    // Other roles have no access to clients
+    return {
+      ...where,
+      id: 'no-access' // This will return no results
+    };
+  }
 
-    const clients = await prisma.client.findMany({
-      where,
-      skip: parseInt(skip),
-      take: parseInt(limit),
-      include: {
-        createdBy: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        },
-        _count: {
-          select: {
-            cases: true,
-            communications: true,
-            documents: true
-          }
+  // Override ownership check (attorneys can access all clients they're assigned to)
+  checkOwnership(resource, user) {
+    if (['ADMIN', 'ATTORNEY'].includes(user.role)) {
+      return true;
+    }
+    
+    // Paralegals can access clients if they have cases assigned to them
+    if (user.role === 'PARALEGAL' && resource.cases) {
+      const hasAssignedCases = resource.cases.some(caseItem => caseItem.userId === user.userId);
+      if (hasAssignedCases) {
+        return true;
+      }
+    }
+
+    throw new APIError('Access denied. You can only access clients you are assigned to.', 403);
+  }
+
+  // Generate unique client number
+  async generateClientNumber() {
+    const year = new Date().getFullYear();
+    const prefix = `CL${year}`;
+    
+    // Find the highest existing client number for this year
+    const lastClient = await prisma.client.findFirst({
+      where: {
+        clientNumber: {
+          startsWith: prefix
         }
       },
       orderBy: {
-        createdAt: 'desc'
+        clientNumber: 'desc'
       }
     });
 
-    const total = await prisma.client.count({ where });
+    let nextNumber = 1;
+    if (lastClient) {
+      const lastNumber = parseInt(lastClient.clientNumber.replace(prefix, ''));
+      nextNumber = lastNumber + 1;
+    }
 
-    res.json({
-      clients,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    return `${prefix}${nextNumber.toString().padStart(4, '0')}`;
   }
-};
 
-// Get client by ID
-exports.getClientById = async (req, res) => {
-  try {
+  // Custom route: Get client statistics
+  getClientStats = ErrorHandler.asyncHandler(async (req, res) => {
     const { id } = req.params;
-
+    
     const client = await prisma.client.findUnique({
       where: { id },
       include: {
-        createdBy: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true
-          }
-        },
         cases: {
           include: {
-            attorney: {
-              select: {
-                firstName: true,
-                lastName: true
-              }
-            },
-            paralegal: {
-              select: {
-                firstName: true,
-                lastName: true
-              }
-            }
+            billing: true,
+            timeEntries: true,
+            settlements: true
           }
         },
-        communications: {
-          take: 5,
-          orderBy: {
-            dateTime: 'desc'
-          }
-        },
-        documents: {
-          take: 5,
-          orderBy: {
-            createdAt: 'desc'
-          }
-        }
+        communications: true,
+        tasks: true
       }
     });
 
     if (!client) {
-      return res.status(404).json({ error: 'Client not found' });
+      const response = APIResponse.notFound('Client', id);
+      return res.status(404).json(response);
     }
 
-    res.json(client);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+    // Check ownership
+    this.checkOwnership(client, req.user);
 
-// Create client
-exports.createClient = async (req, res) => {
-  try {
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      address,
-      city,
-      state,
-      zipCode,
-      dateOfBirth,
-      emergencyContact,
-      emergencyPhone,
-      notes,
-      source
-    } = req.body;
+    // Calculate statistics
+    const stats = {
+      totalCases: client.cases.length,
+      activeCases: client.cases.filter(c => c.status === 'ACTIVE').length,
+      closedCases: client.cases.filter(c => c.status === 'CLOSED').length,
+      totalBilled: client.cases.reduce((sum, caseItem) => 
+        sum + caseItem.billing.reduce((billingSum, b) => billingSum + b.totalAmount, 0), 0),
+      totalPaid: client.cases.reduce((sum, caseItem) => 
+        sum + caseItem.billing.reduce((billingSum, b) => billingSum + b.paidAmount, 0), 0),
+      totalTimeHours: client.cases.reduce((sum, caseItem) => 
+        sum + caseItem.timeEntries.reduce((timeSum, t) => timeSum + t.hours, 0), 0),
+      totalSettlements: client.cases.reduce((sum, caseItem) => 
+        sum + caseItem.settlements.reduce((settlementSum, s) => settlementSum + s.amount, 0), 0),
+      communicationCount: client.communications.length,
+      taskCount: client.tasks.length,
+      openTasks: client.tasks.filter(t => ['PENDING', 'IN_PROGRESS'].includes(t.status)).length
+    };
 
-    const client = await prisma.client.create({
-      data: {
-        firstName,
-        lastName,
-        email,
-        phone,
-        address,
-        city,
-        state,
-        zipCode,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        emergencyContact,
-        emergencyPhone,
-        notes,
-        source,
-        createdById: req.user?.userId || req.user?.id || 'system'
-      },
-      include: {
-        createdBy: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        }
-      }
-    });
+    const response = APIResponse.success(stats, 'Client statistics retrieved successfully');
+    res.json(response);
+  });
 
-    // Log activity
-    await prisma.activity.create({
-      data: {
-        action: 'CREATE',
-        description: `Created client: ${firstName} ${lastName}`,
-        entityType: 'CLIENT',
-        entityId: client.id,
-        userId: req.user?.userId || req.user?.id || 'system',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
-      }
-    });
-
-    res.status(201).json(client);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Update client
-exports.updateClient = async (req, res) => {
-  try {
+  // Custom route: Get client timeline
+  getClientTimeline = ErrorHandler.asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const updateData = { ...req.body };
-
-    if (updateData.dateOfBirth) {
-      updateData.dateOfBirth = new Date(updateData.dateOfBirth);
-    }
-
-    const client = await prisma.client.update({
-      where: { id },
-      data: updateData,
-      include: {
-        createdBy: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        }
-      }
-    });
-
-    // Log activity
-    await prisma.activity.create({
-      data: {
-        action: 'UPDATE',
-        description: `Updated client: ${client.firstName} ${client.lastName}`,
-        entityType: 'CLIENT',
-        entityId: client.id,
-        userId: req.user?.userId || req.user?.id || 'system',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
-      }
-    });
-
-    res.json(client);
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Client not found' });
-    }
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Delete client
-exports.deleteClient = async (req, res) => {
-  try {
-    const { id } = req.params;
-
+    const { limit = 50, offset = 0 } = req.query;
+    
     const client = await prisma.client.findUnique({ where: { id } });
     if (!client) {
-      return res.status(404).json({ error: 'Client not found' });
+      const response = APIResponse.notFound('Client', id);
+      return res.status(404).json(response);
     }
 
-    await prisma.client.delete({
-      where: { id }
+    // Check ownership
+    this.checkOwnership(client, req.user);
+
+    // Get timeline events from various sources
+    const [activities, communications, tasks, caseEvents] = await Promise.all([
+      prisma.activity.findMany({
+        where: { entityId: id, entityType: 'CLIENT' },
+        take: parseInt(limit),
+        skip: parseInt(offset),
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.communication.findMany({
+        where: { clientId: id },
+        take: parseInt(limit),
+        skip: parseInt(offset),
+        orderBy: { date: 'desc' }
+      }),
+      prisma.task.findMany({
+        where: { clientId: id },
+        take: parseInt(limit),
+        skip: parseInt(offset),
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.case.findMany({
+        where: { clientId: id },
+        include: {
+          settlements: { orderBy: { createdAt: 'desc' } },
+          deadlines: { orderBy: { dueDate: 'desc' } }
+        }
+      })
+    ]);
+
+    // Combine and format timeline events
+    const timeline = [];
+
+    activities.forEach(activity => {
+      timeline.push({
+        type: 'activity',
+        date: activity.createdAt,
+        title: activity.action.replace(/_/g, ' ').toLowerCase(),
+        description: activity.description,
+        data: activity
+      });
     });
 
-    // Log activity
-    await prisma.activity.create({
+    communications.forEach(comm => {
+      timeline.push({
+        type: 'communication',
+        date: comm.date,
+        title: `${comm.type.replace(/_/g, ' ').toLowerCase()} - ${comm.direction.toLowerCase()}`,
+        description: comm.subject || comm.content.substring(0, 100),
+        data: comm
+      });
+    });
+
+    tasks.forEach(task => {
+      timeline.push({
+        type: 'task',
+        date: task.createdAt,
+        title: `Task ${task.status.toLowerCase()}: ${task.title}`,
+        description: task.description,
+        data: task
+      });
+    });
+
+    caseEvents.forEach(caseItem => {
+      timeline.push({
+        type: 'case',
+        date: caseItem.createdAt,
+        title: `Case opened: ${caseItem.caseNumber}`,
+        description: `${caseItem.caseType} case opened`,
+        data: caseItem
+      });
+
+      caseItem.settlements.forEach(settlement => {
+        timeline.push({
+          type: 'settlement',
+          date: settlement.createdAt,
+          title: `Settlement ${settlement.type.toLowerCase()}`,
+          description: `$${settlement.amount.toLocaleString()} settlement`,
+          data: settlement
+        });
+      });
+    });
+
+    // Sort timeline by date
+    timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const response = APIResponse.success(
+      timeline.slice(0, parseInt(limit)), 
+      'Client timeline retrieved successfully'
+    );
+    res.json(response);
+  });
+
+  // Custom route: Merge clients
+  mergeClients = ErrorHandler.asyncHandler(async (req, res) => {
+    const { primaryClientId, secondaryClientId } = req.body;
+
+    if (!primaryClientId || !secondaryClientId) {
+      throw new APIError('Both primaryClientId and secondaryClientId are required', 400);
+    }
+
+    if (primaryClientId === secondaryClientId) {
+      throw new APIError('Cannot merge a client with itself', 400);
+    }
+
+    // Check if both clients exist
+    const [primaryClient, secondaryClient] = await Promise.all([
+      prisma.client.findUnique({ where: { id: primaryClientId } }),
+      prisma.client.findUnique({ where: { id: secondaryClientId } })
+    ]);
+
+    if (!primaryClient) {
+      throw new APIError('Primary client not found', 404);
+    }
+
+    if (!secondaryClient) {
+      throw new APIError('Secondary client not found', 404);
+    }
+
+    // Check permissions
+    this.checkOwnership(primaryClient, req.user);
+    this.checkOwnership(secondaryClient, req.user);
+
+    // Perform merge transaction
+    await prisma.$transaction(async (tx) => {
+      // Move all related records from secondary to primary client
+      await Promise.all([
+        tx.case.updateMany({
+          where: { clientId: secondaryClientId },
+          data: { clientId: primaryClientId }
+        }),
+        tx.communication.updateMany({
+          where: { clientId: secondaryClientId },
+          data: { clientId: primaryClientId }
+        }),
+        tx.task.updateMany({
+          where: { clientId: secondaryClientId },
+          data: { clientId: primaryClientId }
+        }),
+        tx.billing.updateMany({
+          where: { clientId: secondaryClientId },
+          data: { clientId: primaryClientId }
+        })
+      ]);
+
+      // Delete secondary client
+      await tx.client.delete({ where: { id: secondaryClientId } });
+
+      // Log the merge activity
+      await tx.activity.create({
+        data: {
+          id: AuthUtils.generateToken(16),
+          action: 'CLIENTS_MERGED',
+          description: `Client ${secondaryClient.firstName} ${secondaryClient.lastName} merged into ${primaryClient.firstName} ${primaryClient.lastName}`,
+          entityType: 'CLIENT',
+          entityId: primaryClientId,
+          userId: req.user.userId,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent'),
+          metadata: JSON.stringify({
+            primaryClient: primaryClientId,
+            secondaryClient: secondaryClientId,
+            secondaryClientName: `${secondaryClient.firstName} ${secondaryClient.lastName}`
+          })
+        }
+      });
+    });
+
+    const response = APIResponse.success(
+      { primaryClientId, mergedClientId: secondaryClientId },
+      'Clients merged successfully'
+    );
+    res.json(response);
+  });
+
+  // Emergency Contact Management
+  getEmergencyContacts = ErrorHandler.asyncHandler(async (req, res) => {
+    const { id: clientId } = req.params;
+    
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { id: true }
+    });
+
+    if (!client) {
+      const response = APIResponse.notFound('Client', clientId);
+      return res.status(404).json(response);
+    }
+
+    const contacts = await prisma.emergencyContact.findMany({
+      where: { clientId },
+      orderBy: [
+        { isPrimary: 'desc' },
+        { firstName: 'asc' }
+      ]
+    });
+
+    const response = APIResponse.success(contacts, 'Emergency contacts retrieved successfully');
+    res.json(response);
+  });
+
+  createEmergencyContact = ErrorHandler.asyncHandler(async (req, res) => {
+    const { id: clientId } = req.params;
+    const data = req.body;
+
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { id: true }
+    });
+
+    if (!client) {
+      const response = APIResponse.notFound('Client', clientId);
+      return res.status(404).json(response);
+    }
+
+    // If setting as primary, unset other primary contacts
+    if (data.isPrimary) {
+      await prisma.emergencyContact.updateMany({
+        where: { clientId, isPrimary: true },
+        data: { isPrimary: false }
+      });
+    }
+
+    const contact = await prisma.emergencyContact.create({
       data: {
-        action: 'DELETE',
-        description: `Deleted client: ${client.firstName} ${client.lastName}`,
-        entityType: 'CLIENT',
-        entityId: client.id,
-        userId: req.user?.userId || req.user?.id || 'system',
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
+        ...data,
+        clientId
       }
     });
 
-    res.json({ message: 'Client deleted successfully' });
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return res.status(404).json({ error: 'Client not found' });
-    }
-    res.status(500).json({ error: error.message });
-  }
-};
+    const response = APIResponse.success(contact, 'Emergency contact created successfully', { statusCode: 201 });
+    res.status(201).json(response);
+  });
 
-// Get client cases
-exports.getClientCases = async (req, res) => {
-  try {
-    const { id } = req.params;
+  updateEmergencyContact = ErrorHandler.asyncHandler(async (req, res) => {
+    const { id: clientId, contactId } = req.params;
+    const data = req.body;
+
+    const contact = await prisma.emergencyContact.findFirst({
+      where: { 
+        id: contactId,
+        clientId 
+      }
+    });
+
+    if (!contact) {
+      const response = APIResponse.notFound('Emergency contact', contactId);
+      return res.status(404).json(response);
+    }
+
+    // If setting as primary, unset other primary contacts
+    if (data.isPrimary && !contact.isPrimary) {
+      await prisma.emergencyContact.updateMany({
+        where: { clientId, isPrimary: true },
+        data: { isPrimary: false }
+      });
+    }
+
+    const updatedContact = await prisma.emergencyContact.update({
+      where: { id: contactId },
+      data
+    });
+
+    const response = APIResponse.success(updatedContact, 'Emergency contact updated successfully');
+    res.json(response);
+  });
+
+  deleteEmergencyContact = ErrorHandler.asyncHandler(async (req, res) => {
+    const { id: clientId, contactId } = req.params;
+
+    const contact = await prisma.emergencyContact.findFirst({
+      where: { 
+        id: contactId,
+        clientId 
+      }
+    });
+
+    if (!contact) {
+      const response = APIResponse.notFound('Emergency contact', contactId);
+      return res.status(404).json(response);
+    }
+
+    await prisma.emergencyContact.delete({
+      where: { id: contactId }
+    });
+
+    const response = APIResponse.success(null, 'Emergency contact deleted successfully');
+    res.json(response);
+  });
+
+  // Method aliases for route compatibility
+  getClients = this.getAll;
+  createClient = this.create;
+  getClientById = this.getById;
+  updateClient = this.update;
+  deleteClient = this.delete;
+
+  // Additional client-specific methods
+  getClientCases = ErrorHandler.asyncHandler(async (req, res) => {
+    const { id: clientId } = req.params;
+
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { id: true }
+    });
+
+    if (!client) {
+      const response = APIResponse.notFound('Client', clientId);
+      return res.status(404).json(response);
+    }
+
+    this.checkOwnership(client, req.user);
 
     const cases = await prisma.case.findMany({
-      where: { clientId: id },
+      where: { clientId },
       include: {
-        attorney: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        },
-        paralegal: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        },
-        _count: {
-          documents: true,
-          tasks: true,
-          timeEntries: true
-        }
+        user: { select: { firstName: true, lastName: true } },
+        billing: true,
+        timeEntries: true
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: { createdAt: 'desc' }
     });
 
-    res.json(cases);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+    const response = APIResponse.success(cases, 'Client cases retrieved successfully');
+    res.json(response);
+  });
 
-// Get client communications
-exports.getClientCommunications = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { page = 1, limit = 20 } = req.query;
-    const skip = (page - 1) * limit;
+  getClientCommunications = ErrorHandler.asyncHandler(async (req, res) => {
+    const { id: clientId } = req.params;
+    const { limit = 50, offset = 0 } = req.query;
+
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { id: true }
+    });
+
+    if (!client) {
+      const response = APIResponse.notFound('Client', clientId);
+      return res.status(404).json(response);
+    }
+
+    this.checkOwnership(client, req.user);
 
     const communications = await prisma.communication.findMany({
-      where: { clientId: id },
-      skip: parseInt(skip),
-      take: parseInt(limit),
+      where: { clientId },
       include: {
-        user: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        },
-        case: {
-          select: {
-            title: true,
-            caseNumber: true
-          }
-        }
+        user: { select: { firstName: true, lastName: true } }
       },
-      orderBy: {
-        dateTime: 'desc'
-      }
+      orderBy: { date: 'desc' },
+      take: parseInt(limit),
+      skip: parseInt(offset)
     });
 
     const total = await prisma.communication.count({
-      where: { clientId: id }
+      where: { clientId }
     });
 
-    res.json({
+    const response = APIResponse.paginated(
       communications,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+      {
         total,
-        pages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
+        page: Math.floor(parseInt(offset) / parseInt(limit)) + 1,
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit))
+      },
+      'Client communications retrieved successfully'
+    );
+    res.json(response);
+  });
+}
+
+module.exports = new ClientController();
