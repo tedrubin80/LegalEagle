@@ -453,4 +453,18 @@ const getPriorityColor = (priority) => {
   return colors[priority] || 'bg-gray-100 text-gray-800 border-gray-200';
 };
 
+// Helper function to get status icon
+const getStatusIcon = (status) => {
+  switch (status) {
+    case 'PENDING':
+      return React.createElement(ClockIcon, { className: 'h-4 w-4 text-yellow-500' });
+    case 'IN_PROGRESS':
+      return React.createElement(ClockIcon, { className: 'h-4 w-4 text-blue-500' });
+    case 'COMPLETED':
+      return React.createElement(CheckCircleIcon, { className: 'h-4 w-4 text-green-500' });
+    default:
+      return React.createElement(ClockIcon, { className: 'h-4 w-4 text-gray-500' });
+  }
+};
+
 export default TaskBoard;
